@@ -1,0 +1,106 @@
+version: '3.8'
+
+services:
+  # -----------------------------------------------------------------
+  # RABBITMQ BROKER
+  # -----------------------------------------------------------------
+  rabbitmq:
+    image: rabbitmq:latest
+    container_name: rabbitmq-demo
+    hostname: rabbitmq
+    ports:
+      - "15672:15672" # Management UI
+      - "5672:5672"   # AMQP Port
+    environment:
+      RABBITMQ_DEFAULT_USER: demo
+      RABBITMQ_DEFAULT_PASS: demo1234
+    configs:
+      - source: rabbitmq-plugins
+        target: /etc/rabbitmq/rabbitmq.conf
+    volumes:
+      - rabbitmq-lib:/var/lib/rabbitmq
+      - rabbitmq-data:/var/lib/rabbitmq
+      - rabbitmq-logs:/var/log/rabbitmq
+    labels:
+      # DATADOG AUTODISCOVERY CONFIGURATION
+      # This tells Datadog: "Hey, I am RabbitMQ. Monitor me."
+      com.datadoghq.ad.check_names: '["rabbitmq"]'
+      com.datadoghq.ad.init_configs: '[{}]'
+      com.datadoghq.ad.instances: |
+        [
+          {
+            "rabbitmq_api_url": "http://%%host%%:15672/api/",
+            "rabbitmq_user": "demo",
+            "rabbitmq_pass": "demo1234"
+          }
+        ]
+  configs:
+    rabbitmq-plugins:
+      content: "[rabbitmq_management]"
+
+  volumes:
+    rabbitmq-lib:
+      driver: local
+    rabbitmq-data:
+      driver: local
+    rabbitmq-logs:
+      driver: local
+  # -----------------------------------------------------------------
+  # PRODUCER (Sends messages)
+  # -----------------------------------------------------------------
+  producer:
+    build: .
+    command: ddtrace-run python producer.py
+    depends_on:
+      - rabbitmq
+    environment:
+      BROKER_HOST: rabbitmq
+      BROKER_USER: demo
+      BROKER_PASS: demo1234
+      PUBLISH_INTERVAL: 0.5 # Send a message every 0.5 seconds
+      DD_SERVICE: producer
+      DD_ENV: demo
+      DD_VERSION: 1.0.0
+      DD_LOGS_INJECTION: true
+      DD_PROFILING_ENABLED: true
+      DD_DATA_STREAMS_ENABLED: true
+      DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED: true
+  # -----------------------------------------------------------------
+  # CONSUMER (Reads messages)
+  # -----------------------------------------------------------------
+  consumer:
+    build: .
+    command: ddtrace-run python consumer.py
+    depends_on:
+      - rabbitmq
+    environment:
+      BROKER_HOST: rabbitmq
+      BROKER_USER: demo
+      BROKER_PASS: demo1234
+      PROCESS_TIME: 0.1 # Takes 0.1 seconds to process a message (Healthy)
+      DD_SERVICE: consumer
+      DD_ENV: demo
+      DD_VERSION: 1.0.0
+      DD_LOGS_INJECTION: true
+      DD_PROFILING_ENABLED: true
+      DD_DATA_STREAMS_ENABLED: true
+      DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED: true
+  # -----------------------------------------------------------------
+  # DATADOG AGENT
+  # -----------------------------------------------------------------
+  datadog:
+    image: gcr.io/datadoghq-agent:7
+    container_name: dd-agent
+    ports:
+      - "8126:8126"
+    environment:
+      - DD_API_KEY=$DD_API_KEY
+      - DD_SITE=datadoghq.com 
+      - DD_LOGS_ENABLED=true
+      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      - DD_PROCESS_AGENT_ENABLED=true
+      - DD_DOCKER_LABELS_AS_TAGS=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - /proc/:/host/proc/:ro
+      - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
