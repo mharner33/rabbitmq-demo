@@ -19,7 +19,6 @@ services:
         target: /etc/rabbitmq/rabbitmq.conf
     volumes:
       - rabbitmq-lib:/var/lib/rabbitmq
-      - rabbitmq-data:/var/lib/rabbitmq
       - rabbitmq-logs:/var/log/rabbitmq
     labels:
       # DATADOG AUTODISCOVERY CONFIGURATION
@@ -40,8 +39,6 @@ services:
 
   volumes:
     rabbitmq-lib:
-      driver: local
-    rabbitmq-data:
       driver: local
     rabbitmq-logs:
       driver: local
