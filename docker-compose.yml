@@ -17,9 +17,9 @@ services:
     configs:
       - source: rabbitmq-plugins
         target: /etc/rabbitmq/rabbitmq.conf
-    volumes:
-      - rabbitmq-lib:/var/lib/rabbitmq
-      - rabbitmq-logs:/var/log/rabbitmq
+    # volumes:
+    #   - rabbitmq-lib:/var/lib/rabbitmq
+    #   - rabbitmq-logs:/var/log/rabbitmq
     labels:
       # DATADOG AUTODISCOVERY CONFIGURATION
       # This tells Datadog: "Hey, I am RabbitMQ. Monitor me."
@@ -37,11 +37,11 @@ services:
     rabbitmq-plugins:
       content: "[rabbitmq_management]"
 
-  volumes:
-    rabbitmq-lib:
-      driver: local
-    rabbitmq-logs:
-      driver: local
+  # volumes:
+  #   rabbitmq-lib:
+  #     driver: local
+  #   rabbitmq-logs:
+  #     driver: local
   # -----------------------------------------------------------------
   # PRODUCER (Sends messages)
   # -----------------------------------------------------------------
